@@ -1,0 +1,4 @@
+pyqt5
+requests
+BeautifulSoup4
+gevent
