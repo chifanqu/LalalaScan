@@ -45,11 +45,16 @@ class ScanThread(QThread):
         # 自动识别404 - 判断是否与获取404页面特征匹配
         check404Result = scan.check404Result
         if response.status_code == 404: return
-        if check404Result['isChecked'] and response.status_code == check404Result['status']:
-            path = urllib.parse.urlparse(url).path
-            filename = path.split('/')[-1]
-            compText = responseText.replace(path, '').replace(filename, '')
-            if crc32(compText) == check404Result['crc32']: return
+        if check404Result['isChecked']:
+            for checkInfo in check404Result['checkList']:
+                if response.status_code == checkInfo['status']:
+                    # 没有crc32校验，直接判断为404
+                    if checkInfo['status'] == '': return
+                    else:
+                        path = urllib.parse.urlparse(url).path
+                        filename = path.split('/')[-1]
+                        compText = responseText.replace(path, '').replace(filename, '')
+                        if crc32(compText) == checkInfo['crc32'] or crc32(responseText) == checkInfo['crc32']: return
 
         # 处理403的问题
         if response.status_code == 403:
@@ -201,13 +206,18 @@ class ScanThread(QThread):
 
         # 先看下能不能访问, 多次检测
         isOpen = False
-        for i in range(3):
+        checkNum = 3
+        errorNum = 0
+        for i in range(checkNum):
             try:
                 response = requests.get(self.target, timeout=5)
                 isOpen = True
                 break
             except requests.exceptions.ConnectionError:
-                self._signalScanDone.emit("requests.exceptions.ConnectionError")
+                errorNum += 1
+        if errorNum == checkNum:
+            self._signalScanDone.emit("requests.exceptions.ConnectionError")
+            return
 
         # 开启
         self.isStop = False

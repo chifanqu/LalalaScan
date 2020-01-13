@@ -49,6 +49,10 @@ class ConfigFileParser:
         return self._get_option('RequestHandler','conf.request_persistent_connect')
     def request_method(self):
         return self._get_option('RequestHandler','conf.request_method')
+    def redirection_302(self):
+        return self._get_option('RequestHandler','conf.redirection_302')
+
+
 
     def proxy_server(self):
         return self._get_option('ProxyHandler','conf.proxy_server')

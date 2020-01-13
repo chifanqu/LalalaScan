@@ -123,11 +123,12 @@ def check404Page(url):
     '''
     @description: 检查404页面，收集信息
     @param {url:输入的url}
-    @return: 返回:{"isChecked":True, "status":200, "crc32":"xxx"} or {"isChecked":True, "status":404, "crc32":""}
+    @return: 返回:{"isChecked":True, "checkList":["status":200, "crc32":"xxx"]} or 
+                  {"isChecked":True, "checkList":["status":404, "crc32":""]}
     '''
-    checkResult = {"isChecked":False, "status":0, "crc32":""}
+    checkResult = {"isChecked":False, "checkList":[{"status":404, "crc32":""}]}
     try:
-        # 生成随机页面
+        # 随机页面
         randomCollect = string.ascii_letters + string.digits
         randomStr = ''.join(random.sample(randomCollect, random.randint(20,30)))
         randomUrl = "%s%s.html" % (url, randomStr)
@@ -135,7 +136,7 @@ def check404Page(url):
         # 检测 status code
         # 如果是 404 ，直接返回就行
         if response.status_code == 404:
-            checkResult = {"isChecked":True, "status":404, "crc32":""}
+            checkResult['isChecked'] = True   # {"isChecked":True, "status":404, "crc32":""}
         # 200的话，检查404页面的crc~
         elif response.status_code == 200:
             randomStr_1 = ''.join(random.sample(randomCollect, random.randint(20,30)))
@@ -150,17 +151,46 @@ def check404Page(url):
             compText_1 = response_1.text.replace(path_1, '').replace(randomStr_1, '')
             if crc32(compText) == crc32(compText_1):
                 crc32Str = crc32(compText)
-                checkResult = {"isChecked":True, "status":200, "crc32":crc32Str}
+                checkResult['isChecked'] = True
+                checkResult['checkList'].append({"status":200, "crc32":crc32Str})
             # TODO:检查title的指定字符串？
             else:
                 pass
         # 不然就搞不定了，后续再研究是否有其他特征~
         else:
             pass
+
+        # 检查目录的404问题，有些网站 xxx.html 和 xxx/ 返回不一样的404...
+        randomUrl = "%s%s/" % (url, randomStr)
+        response = requests.get(randomUrl, timeout=3)
+        # 检测 status code
+        # 如果是 404 ，直接返回就行
+        if response.status_code == 404:
+            checkResult['isChecked'] = True
+        # 200的话，检查404页面的crc~
+        elif response.status_code == 200:
+            randomStr_1 = ''.join(random.sample(randomCollect, random.randint(20,30)))
+            randomUrl_1 = "%s%s/" % (url, randomStr)
+            response_1  = requests.get(randomUrl_1, timeout=3)
+            # 替换掉可能出现的随机字符串...
+            path       = urllib.parse.urlparse(randomUrl).path
+            path_1     = urllib.parse.urlparse(randomUrl).path
+            compText   = response.text
+            compText_1 = response_1.text
+            compText   = response.text.replace(path, '').replace(randomStr, '')
+            compText_1 = response_1.text.replace(path_1, '').replace(randomStr_1, '')
+            if crc32(compText) == crc32(compText_1):
+                crc32Str = crc32(compText)
+                checkResult['isChecked'] = True
+                checkResult['checkList'].append({"status":200, "crc32":crc32Str})
+
     except Exception as e:
         tracebackLogger()
     
+    print(checkResult)
+
     return checkResult
+
 
 def getBackendLangByHeaders(headers):
     '''
@@ -355,7 +385,7 @@ def setPaths():
     # 文件目录
     paths.DATA_PATH = os.path.join(root_path, "data")
     paths.OUTPUT_PATH = os.path.join(root_path, "output")
-    paths.CONFIG_PATH = os.path.join(root_path, "lalalaScan.conf")
+    paths.CONFIG_PATH = os.path.join(root_path, "LalalaScan.conf")
     paths.UA_LIST_PATH = os.path.join(paths.DATA_PATH, "user-agents.txt")
 
     if not os.path.exists(paths.OUTPUT_PATH):
@@ -394,6 +424,7 @@ def loadConf():
     conf.request_limit = eval(ConfigFileParser().request_limit())
     conf.request_persistent_connect = eval(ConfigFileParser().request_persistent_connect())
     conf.request_method = eval(ConfigFileParser().request_method())
+    conf.redirection_302 = eval(ConfigFileParser().redirection_302())
 
     conf.proxy_server = eval(ConfigFileParser().proxy_server())
 
