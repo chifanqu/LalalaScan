@@ -183,11 +183,8 @@ def check404Page(url):
                 crc32Str = crc32(compText)
                 checkResult['isChecked'] = True
                 checkResult['checkList'].append({"status":200, "crc32":crc32Str})
-
     except Exception as e:
         tracebackLogger()
-    
-    print(checkResult)
 
     return checkResult
 
@@ -267,7 +264,7 @@ def getBackendLangByGuess(url, text, alreadyFindExtList):
                 guessText = response.text
                 if guessText == text: backendLangList.append(ext)
             except Exception as e:
-                pass
+                print('[x] error:{}'.format(e))
     return backendLangList
 
 def getBackendLang(url):

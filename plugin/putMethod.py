@@ -27,12 +27,17 @@ def exploit(oriTarget, scanResultAndResponseList):
     randomStr1 = ''.join(random.sample(string.ascii_letters + string.digits, random.randint(20,30)))
     randomStr2 = 'PUT success! ' + ''.join(random.sample(string.ascii_letters + string.digits, random.randint(20,30)))
     url = "%s://%s/%s" % (scheme, netloc, randomStr1)
-    response = requests.put(url, data=randomStr2)
-    if response.status_code == 201:
-        htmlList.append('status code: 201 Created')
-    response = requests.get(url, data=randomStr2)
-    if response.status_code == 200 or response.text == randomStr2:
-        htmlList.append('<a href="%s">%s</a>' % (url, url))
+    try:
+        response = requests.put(url, data=randomStr2)
+        if response.status_code == 201:
+            htmlList.append('status code: 201 Created')
+        response = requests.get(url, data=randomStr2)
+        if response.status_code == 200 or response.text == randomStr2:
+            htmlList.append('<a href="%s">%s</a>' % (url, url))
+    except Exception as e:
+        print('[x] error:{}'.format(e))
+    finally:
+        pass
     return htmlList
 
 if __name__ == "__main__":

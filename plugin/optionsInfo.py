@@ -23,14 +23,19 @@ def exploit(oriTarget, scanResultAndResponseList):
     scheme = urlParse.scheme
     netloc = urlParse.netloc
     url = "%s://%s/" % (scheme, netloc)
-    response = requests.options(url)
-    headers = response.headers
-    if 'Allow' in headers:
-        allow = headers['Allow']
-        methodList = ['PUT', 'COPY', 'MOVE', 'DELETE', 'MKCOL']
-        for method in methodList:
-            allow = allow.replace(method, '<a style="red">%s</a>'%method)
-        htmlList.append(allow)
+    try:
+        response = requests.options(url)
+        headers = response.headers
+        if 'Allow' in headers:
+            allow = headers['Allow']
+            methodList = ['PUT', 'COPY', 'MOVE', 'DELETE', 'MKCOL']
+            for method in methodList:
+                allow = allow.replace(method, '<a style="red">%s</a>'%method)
+            htmlList.append(allow)
+    except Exception as e:
+        print('[x] error:{}'.format(e))
+    finally:
+        pass
     return htmlList
 
 if __name__ == "__main__":

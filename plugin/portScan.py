@@ -56,6 +56,8 @@ class PostScaner():
             soup = BeautifulSoup(r.content,'lxml')
             return soup.title.text.strip('\n').strip()
         except Exception as e:
+            print('[x] error:{}'.format(e))
+        finally:
             pass
 
     def getSocketBanner(self, target, port):

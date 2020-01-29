@@ -34,7 +34,9 @@ def phpstudyBackdoorCheck(url):
         r = requests.get(url, headers=headers, timeout=10)
         if randomStr in r.text: return True
         else:                   return False
-    except:
+    except Exception as e:
+        print('[x] error:{}'.format(e))
+    finally:
         return False
 
 def exploit(oriTarget, scanResultAndResponseList):

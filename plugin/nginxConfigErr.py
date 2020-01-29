@@ -24,9 +24,14 @@ def exploit(oriTarget, scanResultAndResponseList):
         # 判断是否为目录,也不能是域名那个目录...
         if target.endswith('/') and urllib.parse.urlparse(target).path != "/":
             url = target[:-1] + '../'
-            response = requests.get(url)
-            if response.status_code == 200:
-                urlList.append(url)
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    urlList.append(url)
+            except Exception as e:
+                print('[x] error:{}'.format(e))
+            finally:
+                pass
     htmlList = []
     urlList = list(set(urlList)) # 去重
     for url in urlList:

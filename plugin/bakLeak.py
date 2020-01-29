@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 import requests
+from urllib.parse import urlparse
 
 def getName():
     '''
@@ -46,14 +47,19 @@ def exploit(oriTarget, scanResultAndResponseList):
     leakUrlList = []
     for scanResultAndResponse in scanResultAndResponseList:
         target = scanResultAndResponse['target']
-        # 判断是否为文件
-        if not target.endswith('/'):
+        # 判断是否为文件,也需要有path
+        if not target.endswith('/') and urlparse(target).path != '':
             urlList = getBakUrl(target)
             # 访问
             for url in urlList:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    leakUrlList.append(url)
+                try:
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        leakUrlList.append(url)
+                except Exception as e:
+                    print('[x] error:{}'.format(e))
+                finally:
+                    pass
     htmlList = []
     leakUrlList = list(set(leakUrlList)) # 去重
     for leakUrl in leakUrlList:
