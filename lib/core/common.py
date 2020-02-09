@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import os
 import sys
 import urllib
@@ -65,6 +64,7 @@ def getTargetList(url):
         target = "%s://%s/" % (parsedUrl.scheme, parsedUrl.netloc)
         urlList.append(target)
     except Exception as e:
+        print('[x] error:{}'.format(e))
         tracebackLogger()
         # 识别失败，有多少返回多少吧
         pass
@@ -89,12 +89,13 @@ def getSubDirList(url):
         if parsedUrl.path != '':
             pathList = parsedUrl.path.split('/')
             # 全是路径
-            if parsedUrl.endswith('/'):
+            if url.endswith('/'):
                 subDirList.extend(pathList)
             # 最后一个是文件
             else:
                 subDirList.extend(pathList[:-1])
     except Exception as e:
+        print('[x] error:{}'.format(e))
         tracebackLogger()
         # 识别失败，有多少返回多少吧
         pass
@@ -117,7 +118,41 @@ def checkUrl(url):
     parsedUrl = urllib.parse.urlparse(url)
     # 检测域名情况
     if parsedUrl.netloc == '': return ''
+    # 检测path,什么都没有加上个/
+    if parsedUrl.path == "": url += '/'
     return url
+
+def checkAllow3XXDir(dirUrl):
+    '''
+    @description: 检查该目录是否都会重定向 3XX
+    @param {dirUrl: 输入的dirUrl,没有index.html之类的文件名}
+    @return: boolean
+    '''
+    randomCollect = string.ascii_letters + string.digits
+    randomStr1 = ''.join(random.sample(randomCollect, random.randint(20,30)))
+    randomUrl1 = "%s%s.html" % (dirUrl, randomStr1)
+    randomStr2 = ''.join(random.sample(randomCollect, random.randint(20,30)))
+    randomUrl2 = "%s%s.html" % (dirUrl, randomStr2)
+    # 判断是否均为3XX
+    try:
+        response1 = requests.get(randomUrl1, allow_redirects=False, timeout=3)
+        response2 = requests.get(randomUrl2, allow_redirects=False, timeout=3)
+        if  response1.status_code == response2.status_code and \
+            300 < response1.status_code and response1.status_code < 400:
+            location1 = None if not "Location" in response1.headers else response1.headers['Location']
+            location2 = None if not "Location" in response2.headers else response2.headers['Location']
+            # 特殊处理下[;]/[#]/[?]的问题...
+            if not location1 or not location2: return None
+            location1 = location1.split(";")[0].split("#")[0].split("?")[0]
+            location2 = location2.split(";")[0].split("#")[0].split("?")[0]
+            # 两次随机的页面，重定向到同一个，后续不管了
+            if location1 and location1 == location2:
+                return False
+    except Exception as e:
+        print('[x] error:{}'.format(e))
+        tracebackLogger()
+        return None
+    return True
 
 def check404Page(url):
     '''
@@ -188,7 +223,6 @@ def check404Page(url):
 
     return checkResult
 
-
 def getBackendLangByHeaders(headers):
     '''
     @description: 根据返回包的header信息，检查后端语言
@@ -202,12 +236,6 @@ def getBackendLangByHeaders(headers):
             {"Server": "PHP"},
             {"Location": ".php"},
         ],
-        '''
-        "python":[
-            {"Server": "Python"},
-            {"Server": "Werkzeug"},
-        ],
-        '''
         "jsp":[
             {"Server": "Apache-Coyote"},
             {"Server": "Weblogic"},
@@ -545,11 +573,3 @@ class LinksParser(object):
                 linkList.append(completLink)
         self.allList.extend(linkList)
         return linkList
-
-if __name__ == "__main__":
-    paths.ROOT_PATH = os.getcwd() 
-    setPaths()
-    loadConf()
-    url = "http://127.0.0.1:335/"
-    lp = LinksParser(requests.get(url))
-    print(lp.getAllResult())

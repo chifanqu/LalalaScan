@@ -7,8 +7,9 @@ from PyQt5.QtCore import QThread
 import urllib
 from PyQt5.QtCore import *
 from lib.core.common import getTargetList, check404Page, getBackendLang, loadConf, getPayloadByExtList, loadSingleDict, loadMultDict, crc32
-from lib.core.common import LinksParser, isPortOpen
-from lib.core.data import scan, conf
+from lib.core.common import LinksParser, isPortOpen, checkAllow3XXDir
+from lib.core.data   import scan, conf
+from lib.core.logger import logger, tracebackLogger
 import gevent
 import requests
 import random
@@ -42,6 +43,7 @@ class ScanThread(QThread):
         @return:
         '''
         responseText = response.text
+
         # 自动识别404 - 判断是否与获取404页面特征匹配
         check404Result = scan.check404Result
         if response.status_code == 404: return
@@ -68,7 +70,39 @@ class ScanThread(QThread):
 
         # 400 bad request, 不要了
         if response.status_code == 400: return
-        
+
+        # 3xx 重定向的问题
+        # 防止某文件夹下所有文件均重定向到同一个，导致的大量无效结果
+        if 300 < response.status_code and response.status_code < 400:
+            location = None if 'Location' not in response.headers else response.headers['Location']
+            dirUrl = "/".join(url.split('/')[:-1])+"/"
+            # 目录没有判断过是否可以3XX
+            if dirUrl not in scan.allow3XXDirDict or scan.allow3XXDirDict[dirUrl] == None:
+                # 重复 ? 次,防止timeout导致的出现大量误判
+                for retryNum in range(3):
+                    isAllow3XXDir = checkAllow3XXDir(dirUrl)
+                    if isAllow3XXDir != None:
+                        scan.allow3XXDirDict[dirUrl] = isAllow3XXDir
+                        break
+            isAllow3XXDir = scan.allow3XXDirDict[dirUrl]
+            if isAllow3XXDir != None:
+                scan.allow3XXDirDict[dirUrl] = isAllow3XXDir
+                # 目录可以3xx
+                if isAllow3XXDir:
+                    # Location加到target中
+                    if location:
+                        parsedUrl = urllib.parse.urlparse(url)
+                        netloc, scheme = parsedUrl.netloc, parsedUrl.scheme
+                        location  = location.split(";")[0].split("#")[0].split("?")[0]
+                        # Location 是url形式的
+                        if re.match(r'^http[s]?://', location):
+                            self.putToTaskQueue(location)
+                        elif location != "/":
+                            location  = "%s://%s/%s" % (scheme, netloc, location)
+                            self.putToTaskQueue(location)
+                else: 
+                    return
+
         self.saveScanResult(url, response)
 
         # 如果是目录，加到target中扫描
@@ -186,6 +220,7 @@ class ScanThread(QThread):
             pass
         except Exception as e:
             print('[x] error:{}'.format(e))
+            tracebackLogger()
         finally:
             # 更新进度
             pass
@@ -242,6 +277,9 @@ class ScanThread(QThread):
         scan.taskQueue  = Queue()
         scan.taskCount  = 0
         scan.taskLength = 0
+
+        # 保存是否允许3xx重定向的目录
+        scan.allow3XXDirDict = {}
 
         # 保存所有任务的字典，用于判断是否重复
         scan.targetDict = {}

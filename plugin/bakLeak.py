@@ -52,6 +52,7 @@ def exploit(oriTarget, scanResultAndResponseList):
             urlList = getBakUrl(target)
             # 访问
             for url in urlList:
+                url = url.split(";")[0].split("#")[0].split("?")[0]
                 try:
                     response = requests.get(url)
                     if response.status_code == 200:
